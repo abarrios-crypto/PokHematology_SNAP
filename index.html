@@ -1,0 +1,601 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pokhematology Snap: Una Expedición Celular</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+    <!-- Icon library -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- PDF Generation Libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <style>
+        :root {
+            --bg-primary: #F0F8FF;
+            --bg-secondary: #FFFFFF;
+            --text-primary: #2c3e50;
+            --accent-primary: #3498db;
+            --accent-secondary: #f1c40f;
+        }
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            overflow: hidden;
+        }
+        .view { display: none; width: 100%; height: 100vh; position: absolute; top: 0; left: 0; animation: fadeIn 0.5s ease-in-out; }
+        .view.active { display: flex; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .panel { background: var(--bg-secondary); border-radius: 24px; box-shadow: 0 10px 30px rgba(44, 62, 80, 0.15); border: 1px solid #e0e0e0; }
+        .header-panel { background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-bottom: 1px solid rgba(200, 200, 200, 0.5); }
+        .scan-target { position: absolute; width: 90px; height: 90px; border-radius: 50%; background: rgba(241, 196, 15, 0.2); border: 3px dashed var(--accent-secondary); cursor: pointer; transition: all 0.3s ease; animation: pulse-yellow 2.5s infinite; display: flex; align-items: center; justify-content: center; }
+        .scan-target:hover { transform: scale(1.15); background: rgba(241, 196, 15, 0.4); }
+        @keyframes pulse-yellow {
+            0% { box-shadow: 0 0 0 0 rgba(241, 196, 15, 0.7); }
+            70% { box-shadow: 0 0 0 20px rgba(241, 196, 15, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(241, 196, 15, 0); }
+        }
+        .scan-target.scanned { background: rgba(46, 204, 113, 0.3); border: 3px solid #2ecc71; animation: none; cursor: default; }
+        .hemodex-card.locked { filter: grayscale(1); background-color: #f0f0f0; }
+        #recorrido-container { background-size: cover; background-position: center; transition: background-image 1s ease-in-out; }
+        .map-point { transition: all 0.3s ease; border-radius: 9999px; width: 150px; height: 150px; display: flex; flex-direction: column; align-items: center; justify-content: center; border: 4px solid white; box-shadow: 0 5px 15px rgba(0,0,0,0.2); }
+        .map-point:hover { transform: translateY(-10px) scale(1.05); box-shadow: 0 15px 25px rgba(0,0,0,0.2); }
+    </style>
+</head>
+<body class="w-full h-screen overflow-hidden">
+
+    <!-- BARRA DE NAVEGACIÓN -->
+    <header id="main-header" class="fixed top-0 left-0 w-full p-4 z-50 header-panel">
+        <nav class="container mx-auto flex justify-between items-center">
+            <div class="flex items-center space-x-2">
+                <i class="fas fa-camera-retro text-3xl text-accent-primary"></i>
+                <h1 class="text-2xl font-bold text-accent-primary">Pokhematology Snap</h1>
+            </div>
+            <div class="space-x-2">
+                <button data-view="laboratorio" class="nav-link text-lg font-semibold hover:text-accent-primary transition-colors px-4 py-2 rounded-full hover:bg-blue-100">Laboratorio</button>
+                <button data-view="mapa" class="nav-link text-lg font-semibold hover:text-accent-primary transition-colors px-4 py-2 rounded-full hover:bg-blue-100">Mapa</button>
+                <button data-view="hemodex" class="nav-link text-lg font-semibold hover:text-accent-primary transition-colors px-4 py-2 rounded-full hover:bg-blue-100">Hemodex</button>
+                <button data-view="narrativa" class="nav-link text-lg font-semibold hover:text-accent-primary transition-colors px-4 py-2 rounded-full hover:bg-blue-100">Narrativa</button>
+            </div>
+        </nav>
+    </header>
+
+    <main class="w-full h-full">
+        <!-- VISTA 1: LABORATORIO (INICIO) -->
+        <section id="laboratorio" class="view active flex-col items-center justify-center text-center p-8 bg-cover bg-center" style="background-image: url('https://placehold.co/1920x1080/a0d2eb/e0f7fa?text=Fondo+Ilustrado+del+Laboratorio');">
+            <div class="panel p-10 max-w-3xl">
+                <h2 class="text-5xl font-bold mb-4 text-accent-primary">¡Bienvenido a la Expedición!</h2>
+                <p class="text-lg mb-8 max-w-2xl mx-auto text-gray-600">Tu aventura de investigación está a punto de comenzar. Ingresa tu nombre para registrar tus descubrimientos.</p>
+                <div class="mb-6">
+                    <label for="student-name-input" class="sr-only">Nombre Completo</label>
+                    <input type="text" id="student-name-input" class="w-full max-w-md mx-auto p-3 text-lg border-2 border-gray-300 rounded-full text-center focus:ring-accent-primary focus:border-accent-primary" placeholder="Ingresa tu nombre completo...">
+                </div>
+                <button id="start-expedition-btn" class="bg-accent-secondary text-white font-bold py-4 px-10 rounded-full text-xl hover:bg-yellow-500 transition-transform hover:scale-105 transform shadow-lg">
+                    Iniciar Expedición
+                </button>
+            </div>
+        </section>
+
+        <!-- VISTA 2: MAPA DE EXPEDICIÓN -->
+        <section id="mapa" class="view flex-col items-center justify-center p-8" style="background-image: url('https://placehold.co/1920x1080/81c784/dcedc8?text=Mapa+Ilustrado+del+Cuerpo');">
+             <div class="panel p-10 text-center">
+                <h2 class="text-4xl font-bold mb-8 text-accent-primary">Selecciona un Recorrido</h2>
+                <div class="flex flex-wrap justify-center items-center gap-8">
+                    <button data-location="medula" class="map-point bg-red-500 text-white"><h3 class="text-xl font-bold">La Cantera</h3><p class="text-sm">Médula Ósea</p></button>
+                    <button data-location="timo" class="map-point bg-purple-500 text-white"><h3 class="text-xl font-bold">El Dojo</h3><p class="text-sm">Gimnasio T</p></button>
+                    <button data-location="sangre" class="map-point bg-pink-500 text-white"><h3 class="text-xl font-bold">Autopistas</h3><p class="text-sm">Torrente Sanguíneo</p></button>
+                     <button data-location="tejidos" class="map-point bg-green-500 text-white"><h3 class="text-xl font-bold">Territorios</h3><p class="text-sm">Tejidos y Ganglios</p></button>
+                </div>
+            </div>
+        </section>
+
+        <!-- VISTA 3: RECORRIDO DE ESCANEO -->
+        <section id="recorrido" class="view items-center justify-center">
+            <div id="recorrido-container" class="relative w-full h-full overflow-y-auto"></div>
+            <div class="absolute top-24 left-4 panel p-4">
+                <h3 id="recorrido-title" class="text-2xl font-bold text-accent-primary"></h3>
+                <p class="text-gray-600">Apunta y haz clic para escanear.</p>
+            </div>
+        </section>
+
+        <!-- VISTA 4: HEMODEX -->
+        <section id="hemodex" class="view flex-col items-center justify-start p-8 pt-28 overflow-y-auto">
+             <div class="text-center mb-8">
+                <h2 class="text-5xl font-bold mb-2 text-accent-primary">Hemodex Celular</h2>
+                <p class="text-lg text-gray-500">Tu enciclopedia de descubrimientos biológicos.</p>
+            </div>
+            <div class="mb-6 panel p-2 rounded-full flex items-center space-x-2">
+                 <button data-filter="all" class="filter-btn bg-accent-primary text-white font-semibold py-2 px-6 rounded-full">Todo</button>
+                 <button data-filter="mieloide" class="filter-btn hover:bg-gray-200 text-gray-700 font-semibold py-2 px-6 rounded-full">Línea Mieloide</button>
+                 <button data-filter="linfoide" class="filter-btn hover:bg-gray-200 text-gray-700 font-semibold py-2 px-6 rounded-full">Línea Linfoide</button>
+                 <button id="download-pdf-btn" class="bg-green-500 text-white font-semibold py-2 px-6 rounded-full hover:bg-green-600 transition"><i class="fas fa-file-pdf mr-2"></i>Descargar Atlas PDF</button>
+            </div>
+            <div id="hemodex-grid" class="container mx-auto grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6"></div>
+        </section>
+
+        <!-- VISTA 5: NARRATIVA COMPLETA -->
+        <section id="narrativa" class="view flex-col items-center justify-start p-8 pt-28 overflow-y-auto">
+             <div class="panel w-full max-w-4xl max-h-[85vh] overflow-y-auto p-8 lg:p-12">
+                <h2 class="text-4xl font-bold mb-6 text-accent-primary border-b-2 border-yellow-400 pb-2">Pokhematology: Clase de Hematopoyesis</h2>
+                
+                <h3 class="text-2xl font-bold mt-8 mb-3 text-gray-700">1. La aventura comienza en el laboratorio</h3>
+                <p class="text-base leading-relaxed text-gray-600 mb-4">¡Hola a todos! Nuestra aventura Pokémon no se desarrollará en Kanto o Johto, sino dentro de nuestro propio cuerpo. Hoy seremos científicos-entrenadores y exploraremos un lugar fascinante: la <strong>médula ósea</strong>.</p>
+                <p class="text-base leading-relaxed text-gray-600 mb-4">La médula ósea es un tejido blando y esponjoso dentro de los huesos. Funciona como un laboratorio avanzado donde se fabrican todas las células sanguíneas, pero también es un gimnasio donde estas células se entrenan y maduran, preparándose para proteger el organismo. Piensa en esta médula como ese lugar especial donde la ciencia y el entrenamiento convergen para preparar a los "Pokémon sanguíneos" más fuertes y especializados que tu cuerpo necesita.</p>
+
+                <h3 class="text-2xl font-bold mt-8 mb-3 text-gray-700">2. Las líneas de evolución y los “objetos especiales”</h3>
+                <p class="text-base leading-relaxed text-gray-600 mb-4">Desde <strong>Ditto</strong>, que simboliza a la <strong>célula madre hematopoyética pluripotente</strong>, surgen dos rutas evolutivas principales:</p>
+                <ul class="list-disc list-inside text-gray-600 space-y-2 mb-4 pl-4">
+                    <li>La <strong>línea linfoide</strong>, que genera a los estrategas del sistema inmune (Linfocitos T y B), responsables de la inmunidad adaptativa: una defensa especializada y con memoria.</li>
+                    <li>La <strong>línea mieloide</strong>, que produce a los luchadores de primera línea (granulocitos), los transportadores de oxígeno (glóbulos rojos) y los reparadores (plaquetas), siendo la base de la inmunidad innata.</li>
+                </ul>
+                <p class="text-base leading-relaxed text-gray-600 mb-4">La transformación de estas células está regulada por factores de crecimiento, que puedes imaginar como los <strong>“objetos especiales”</strong> del mundo Pokémon:</p>
+                 <ul class="list-disc list-inside text-gray-600 space-y-2 mb-4 pl-4">
+                    <li>La <strong>eritropoyetina (EPO)</strong> actúa como una <em>Piedra Solar</em>, induciendo la maduración de precursores eritroides en glóbulos rojos.</li>
+                    <li>La <strong>trombopoyetina (TPO)</strong> funciona como una <em>Piedra Lunar</em>, estimulando la diferenciación hacia plaquetas.</li>
+                    <li>Factores como el <strong>G-CSF, GM-CSF</strong> o la <strong>IL-3</strong> son como <em>Caramelos Raros</em> que aceleran el crecimiento y la activación de granulocitos y otras células.</li>
+                </ul>
+                
+                <h3 class="text-2xl font-bold mt-8 mb-3 text-gray-700">3. Familias Pokémon de la sangre: analogías evolutivas y funcionales</h3>
+                <h4 class="text-xl font-semibold mt-6 mb-2 text-gray-600">3.1 Línea Linfoide: estrategas y asesinos silenciosos</h4>
+                <p class="text-base leading-relaxed text-gray-600 mb-4">El progenitor linfoide común es como un <strong>Abra</strong> joven, lleno de potencial psíquico latente y listo para evolucionar.</p>
+                <p class="text-base leading-relaxed text-gray-600 mb-4">Al madurar, se convierte en un <strong>Kadabra</strong> (linfoblasto/prolinfocito), con capacidades más definidas y receptores listos para reconocer antígenos.</p>
+                <p class="text-base leading-relaxed text-gray-600 mb-4">Si este <strong>Kadabra</strong> viaja al "gimnasio" del timo para su entrenamiento de élite, evoluciona en un <strong>Alakazam T</strong> (Linfocito T), el maestro estratega de la inmunidad celular.</p>
+                <p class="text-base leading-relaxed text-gray-600 mb-4">Si madura en la médula ósea, se desarrolla como un <strong>Alakazam B</strong> (Linfocito B), que al ser activado se convierte en una célula plasmática, una "mega-evolución" capaz de producir en masa proyectiles de energía: los anticuerpos.</p>
+                <p class="text-base leading-relaxed text-gray-600 mb-4">En paralelo, las <strong>células NK</strong> son como un ágil <strong>Gengar</strong>, un asesino silencioso que se mueve entre las sombras (tejidos) para eliminar rápidamente células infectadas y tumorales sin necesidad de un reconocimiento previo.</p>
+                
+                <h4 class="text-xl font-semibold mt-6 mb-2 text-gray-600">3.2 Línea Mieloide: defensores, transportadores y reparadores</h4>
+                <h5 class="text-lg font-semibold mt-4 mb-2 text-gray-500">Subfamilia A: Transporte (línea eritroide)</h5>
+                <p class="text-base leading-relaxed text-gray-600 mb-4">Imagina al <strong>proeritroblasto</strong> como un <strong>Charmander</strong>, una célula joven con un gran núcleo y citoplasma azulado (basófilo), activa en la síntesis de hemoglobina.</p>
+                <p class="text-base leading-relaxed text-gray-600 mb-4">Al recibir EPO, <strong>Charmander</strong> evoluciona a <strong>Charmeleon</strong> (eritroblasto), cuya tonalidad cambia de azul a un rojo anaranjado mientras acumula hemoglobina y se prepara para expulsar su núcleo.</p>
+                <p class="text-base leading-relaxed text-gray-600 mb-4">Al perder el núcleo, se convierte en un <strong>reticulocito</strong>, un joven <strong>Charizard</strong> que aún conserva algunos ribosomas y ya circula en la sangre periférica, completando su maduración.</p>
+                <p class="text-base leading-relaxed text-gray-600 mb-4">Finalmente, se transforma en un <strong>eritrocito</strong>, un <strong>Charizard</strong> adulto listo para la batalla: flexible, bicóncavo y experto en transportar oxígeno.</p>
+                <h5 class="text-lg font-semibold mt-4 mb-2 text-gray-500">Subfamilia B: Luchadores y devoradores</h5>
+                <p class="text-base leading-relaxed text-gray-600 mb-4">El <strong>mieloblasto</strong> es como un <strong>Eevee</strong>, versátil y listo para evolucionar según las señales que reciba.</p>
+                <p class="text-base leading-relaxed text-gray-600 mb-4">Bajo el estímulo de <strong>G-CSF</strong>, evoluciona a <strong>Sylveon</strong> (Neutrófilo), el más abundante, especializado en fagocitar bacterias en el campo de batalla.</p>
+                <p class="text-base leading-relaxed text-gray-600 mb-4">Con un estímulo de <strong>IL-5</strong>, se transforma en <strong>Flareon</strong> (Eosinófilo), de color rojo intenso, experto en combatir parásitos y regular alergias.</p>
+                <p class="text-base leading-relaxed text-gray-600 mb-4">Bajo la influencia de <strong>IL-3</strong> y señales de <strong>IgE</strong>, se convierte en <strong>Vaporeon</strong> (Basófilo), que libera gránulos (histamina) para iniciar respuestas inflamatorias.</p>
+                <p class="text-base leading-relaxed text-gray-600 mb-4">El <strong>monocito</strong> es un humilde <strong>Magikarp</strong> circulando en la sangre. Pero al llegar a los tejidos y recibir señales inflamatorias (<strong>M-CSF</strong>), sufre una transformación espectacular en un poderoso <strong>Gyarados</strong>: el <strong>macrófago</strong>, un gigante que devora patógenos, limpia desechos y dirige la respuesta inmune local.</p>
+                <h5 class="text-lg font-semibold mt-4 mb-2 text-gray-500">Subfamilia C: Reparadores (línea megacariocítica)</h5>
+                <p class="text-base leading-relaxed text-gray-600 mb-4">El <strong>megacariocito</strong> es un gigante <strong>Golem</strong>, tan grande que permanece inmóvil en la médula ósea.</p>
+                <p class="text-base leading-relaxed text-gray-600 mb-4">Su función es fragmentar su citoplasma para liberar <strong>plaquetas</strong>: las más grandes pueden ser como un <strong>Graveler</strong>, mientras que las pequeñas y funcionales son como una horda de <strong>Geodude</strong>, listos para agruparse y reparar cualquier grieta en los vasos sanguíneos (hemostasia).</p>
+
+                <h3 class="text-2xl font-bold mt-8 mb-3 text-gray-700">4. Gimnasios y campos de batalla</h3>
+                <p class="text-base leading-relaxed text-gray-600">La <strong>médula ósea</strong> es el Pueblo Paleta donde nacen y entrenan nuestros Pokémon. El <strong>timo</strong> es un gimnasio de élite exclusivo para los Linfocitos T. Los <strong>ganglios linfáticos</strong> y el <strong>bazo</strong> son las Ligas Pokémon, donde las células se reúnen, presentan antígenos y coordinan ataques masivos. Finalmente, los <strong>tejidos</strong> son el verdadero campo de batalla, donde se enfrentan a virus, bacterias y otros invasores.</p>
+             </div>
+        </section>
+    </main>
+
+    <!-- MODAL: FICHA DE DATOS -->
+    <div id="ficha-modal" class="fixed inset-0 w-full h-full bg-black/50 flex items-center justify-center z-50 p-4 hidden">
+        <div class="panel w-full max-w-4xl max-h-[90vh] overflow-y-auto relative animate-fadeIn p-8">
+            <button id="close-modal-btn" class="absolute top-4 right-6 text-3xl text-gray-400 hover:text-accent-primary">&times;</button>
+            <div class="text-center mb-6">
+                <h2 id="ficha-cell-name" class="text-4xl font-bold text-accent-primary"></h2>
+                <p id="ficha-poke-name" class="text-lg text-gray-500"></p>
+            </div>
+            <div class="grid md:grid-cols-2 gap-6 mb-6">
+                <div class="flex flex-col items-center p-4 bg-gray-100 rounded-xl">
+                    <h3 class="text-xl font-semibold mb-2">Scan Celular</h3>
+                    <div class="w-full h-64 rounded-lg bg-gray-200 flex items-center justify-center p-2 polaroid-frame">
+                         <img id="ficha-cell-img-tag" src="" alt="Foto de la Célula" class="max-w-full max-h-full object-contain">
+                        <div id="ficha-cell-placeholder" class="text-center text-gray-500">
+                            <i class="fas fa-image text-4xl mb-2"></i>
+                            <p>Sube tu micrografía</p>
+                        </div>
+                    </div>
+                    <input type="file" id="upload-cell-photo" class="hidden" accept="image/*">
+                    <label for="upload-cell-photo" class="mt-4 inline-block bg-accent-primary text-white font-bold py-2 px-6 rounded-full cursor-pointer hover:bg-blue-600 transition">
+                        <i class="fas fa-upload mr-2"></i>Cargar Foto Célula
+                    </label>
+                </div>
+                <div class="flex flex-col items-center p-4 bg-gray-100 rounded-xl">
+                    <h3 class="text-xl font-semibold mb-2">Análogo Pokémon</h3>
+                    <div class="w-full h-64 rounded-lg bg-gray-200 flex items-center justify-center p-2">
+                        <img id="ficha-poke-img-tag" src="" alt="Foto del Pokémon" class="max-w-full max-h-full object-contain rounded-lg hidden">
+                        <div id="ficha-poke-placeholder" class="text-center text-gray-500">
+                            <i class="fas fa-camera text-4xl mb-2"></i>
+                            <p>¡Añade tu foto!</p>
+                        </div>
+                    </div>
+                    <input type="file" id="upload-poke-photo" class="hidden" accept="image/*">
+                    <label for="upload-poke-photo" class="mt-4 inline-block bg-accent-secondary text-white font-bold py-2 px-6 rounded-full cursor-pointer hover:bg-yellow-500 transition">
+                        <i class="fas fa-upload mr-2"></i>Cargar Foto Pokémon
+                    </label>
+                </div>
+            </div>
+            <div>
+                <h3 class="text-2xl font-bold mb-2 text-accent-primary border-b-2 border-yellow-400 pb-2">Reporte de Investigación</h3>
+                <p id="ficha-text" class="text-base leading-relaxed text-gray-700 mt-4"></p>
+                <div class="mt-6">
+                    <label for="ficha-research-notes" class="block text-lg font-semibold text-gray-700 mb-2">Mis Notas de Investigación:</label>
+                    <textarea id="ficha-research-notes" rows="4" class="w-full p-2 border border-gray-300 rounded-lg focus:ring-accent-primary focus:border-accent-primary" placeholder="Añade aquí tus observaciones sobre la célula..."></textarea>
+                </div>
+                <div class="mt-4">
+                    <label for="ficha-source-link" class="block text-lg font-semibold text-gray-700 mb-2">Fuente (URL):</label>
+                    <input type="text" id="ficha-source-link" class="w-full p-2 border border-gray-300 rounded-lg focus:ring-accent-primary focus:border-accent-primary" placeholder="https://ejemplo.com/fuente">
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const { jsPDF } = window.jspdf;
+            let studentName = '';
+
+            // --- DATABASE ---
+            const hemoData = {
+                'ditto': { name: 'Célula Madre Hematopoyética Pluripotente', pokemon: 'Ditto', line: 'none', location: 'medula', text: 'Desde Ditto, que simboliza a la célula madre hematopoyética pluripotente, surgen dos rutas evolutivas principales: la línea linfoide y la línea mieloide.', scanned: false, cellImageUrl: null, pokeImageUrl: null, fixedPokeImageUrl: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/132.png', researchNotes: '', sourceLink: '', captureDate: null },
+                'abra': { name: 'Progenitor Linfoide Común', pokemon: 'Abra', line: 'linfoide', location: 'medula', text: 'El progenitor linfoide común es como un Abra joven, lleno de potencial psíquico latente y listo para evolucionar.', scanned: false, cellImageUrl: null, pokeImageUrl: null, fixedPokeImageUrl: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/63.png', researchNotes: '', sourceLink: '', captureDate: null },
+                'kadabra': { name: 'Linfoblasto / Prolinfocito', pokemon: 'Kadabra', line: 'linfoide', location: 'medula', text: 'Al madurar, se convierte en un Kadabra (linfoblasto/prolinfocito), con capacidades más definidas y receptores listos para reconocer antígenos.', scanned: false, cellImageUrl: null, pokeImageUrl: null, fixedPokeImageUrl: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/64.png', researchNotes: '', sourceLink: '', captureDate: null },
+                'alakazam-t': { name: 'Linfocito T', pokemon: 'Alakazam T', line: 'linfoide', location: 'timo', text: 'Si este Kadabra viaja al "gimnasio" del timo para su entrenamiento de élite, evoluciona en un Alakazam T (Linfocito T), el maestro estratega de la inmunidad celular.', scanned: false, cellImageUrl: null, pokeImageUrl: null, fixedPokeImageUrl: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/65.png', researchNotes: '', sourceLink: '', captureDate: null },
+                'alakazam-b': { name: 'Linfocito B', pokemon: 'Alakazam B', line: 'linfoide', location: 'tejidos', text: 'Si madura en la médula ósea, se desarrolla como un Alakazam B (Linfocito B), que al ser activado se convierte en una célula plasmática, una "mega-evolución" capaz de producir en masa proyectiles de energía: los anticuerpos.', scanned: false, cellImageUrl: null, pokeImageUrl: null, fixedPokeImageUrl: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/65.png', researchNotes: '', sourceLink: '', captureDate: null },
+                'gengar': { name: 'Célula Natural Killer (NK)', pokemon: 'Gengar', line: 'linfoide', location: 'tejidos', text: 'En paralelo, las células NK son como un ágil Gengar, un asesino silencioso que se mueve entre las sombras (tejidos) para eliminar rápidamente células infectadas y tumorales sin necesidad de un reconocimiento previo.', scanned: false, cellImageUrl: null, pokeImageUrl: null, fixedPokeImageUrl: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/94.png', researchNotes: '', sourceLink: '', captureDate: null },
+                'charmander': { name: 'Proeritroblasto', pokemon: 'Charmander', line: 'mieloide', location: 'medula', text: 'Imagina al proeritroblasto como un Charmander, una célula joven con un gran núcleo y citoplasma azulado (basófilo), activa en la síntesis de hemoglobina.', scanned: false, cellImageUrl: null, pokeImageUrl: null, fixedPokeImageUrl: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/4.png', researchNotes: '', sourceLink: '', captureDate: null },
+                'charmeleon': { name: 'Eritroblasto', pokemon: 'Charmeleon', line: 'mieloide', location: 'medula', text: 'Al recibir EPO, Charmander evoluciona a Charmeleon (eritroblasto), cuya tonalidad cambia de azul a un rojo anaranjado mientras acumula hemoglobina y se prepara para expulsar su núcleo.', scanned: false, cellImageUrl: null, pokeImageUrl: null, fixedPokeImageUrl: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/5.png', researchNotes: '', sourceLink: '', captureDate: null },
+                'charizard-joven': { name: 'Reticulocito', pokemon: 'Charizard Joven', line: 'mieloide', location: 'sangre', text: 'Al perder el núcleo, se convierte en un reticulocito, un joven Charizard que aún conserva algunos ribosomas y ya circula en la sangre periférica, completando su maduración.', scanned: false, cellImageUrl: null, pokeImageUrl: null, fixedPokeImageUrl: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/6.png', researchNotes: '', sourceLink: '', captureDate: null },
+                'charizard-adulto': { name: 'Eritrocito', pokemon: 'Charizard Adulto', line: 'mieloide', location: 'sangre', text: 'Finalmente, se transforma en un eritrocito, un Charizard adulto listo para la batalla: flexible, bicóncavo y experto en transportar oxígeno.', scanned: false, cellImageUrl: null, pokeImageUrl: null, fixedPokeImageUrl: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/6.png', researchNotes: '', sourceLink: '', captureDate: null },
+                'eevee': { name: 'Mieloblasto', pokemon: 'Eevee', line: 'mieloide', location: 'medula', text: 'El mieloblasto es como un Eevee, versátil y listo para evolucionar según las señales que reciba.', scanned: false, cellImageUrl: null, pokeImageUrl: null, fixedPokeImageUrl: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/133.png', researchNotes: '', sourceLink: '', captureDate: null },
+                'sylveon': { name: 'Neutrófilo', pokemon: 'Sylveon', line: 'mieloide', location: 'tejidos', text: 'Bajo el estímulo de G-CSF, evoluciona a Sylveon (Neutrófilo), el más abundante, especializado en fagocitar bacterias en el campo de batalla.', scanned: false, cellImageUrl: null, pokeImageUrl: null, fixedPokeImageUrl: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/700.png', researchNotes: '', sourceLink: '', captureDate: null },
+                'flareon': { name: 'Eosinófilo', pokemon: 'Flareon', line: 'mieloide', location: 'tejidos', text: 'Con un estímulo de IL-5, se transforma en Flareon (Eosinófilo), de color rojo intenso, experto en combatir parásitos y regular alergias.', scanned: false, cellImageUrl: null, pokeImageUrl: null, fixedPokeImageUrl: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/136.png', researchNotes: '', sourceLink: '', captureDate: null },
+                'vaporeon': { name: 'Basófilo', pokemon: 'Vaporeon', line: 'mieloide', location: 'tejidos', text: 'Bajo la influencia de IL-3 y señales de IgE, se convierte en Vaporeon (Basófilo), que libera gránulos (histamina) para iniciar respuestas inflamatorias.', scanned: false, cellImageUrl: null, pokeImageUrl: null, fixedPokeImageUrl: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/134.png', researchNotes: '', sourceLink: '', captureDate: null },
+                'magikarp': { name: 'Monocito', pokemon: 'Magikarp', line: 'mieloide', location: 'sangre', text: 'El monocito es un humilde Magikarp circulando en la sangre, pero tiene un gran potencial.', scanned: false, cellImageUrl: null, pokeImageUrl: null, fixedPokeImageUrl: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/129.png', researchNotes: '', sourceLink: '', captureDate: null },
+                'gyarados': { name: 'Macrófago', pokemon: 'Gyarados', line: 'mieloide', location: 'tejidos', text: 'Al llegar a los tejidos, el Monocito (Magikarp) sufre una transformación espectacular en un poderoso Gyarados: el macrófago, un gigante que devora patógenos y limpia desechos.', scanned: false, cellImageUrl: null, pokeImageUrl: null, fixedPokeImageUrl: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/130.png', researchNotes: '', sourceLink: '', captureDate: null },
+                'golem': { name: 'Megacariocito', pokemon: 'Golem', line: 'mieloide', location: 'medula', text: 'El megacariocito es un gigante Golem, tan grande que permanece inmóvil en la médula ósea. Su función es fragmentar su citoplasma para liberar plaquetas.', scanned: false, cellImageUrl: null, pokeImageUrl: null, fixedPokeImageUrl: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/76.png', researchNotes: '', sourceLink: '', captureDate: null },
+                'graveler': { name: 'Plaquetas Gigantes', pokemon: 'Graveler', line: 'mieloide', location: 'sangre', text: 'El Megacariocito (Golem) fragmenta su citoplasma para liberar plaquetas. Las más grandes son como un Graveler.', scanned: false, cellImageUrl: null, pokeImageUrl: null, fixedPokeImageUrl: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/75.png', researchNotes: '', sourceLink: '', captureDate: null },
+                'geodude': { name: 'Plaquetas', pokemon: 'Geodude', line: 'mieloide', location: 'sangre', text: 'Las plaquetas pequeñas y funcionales son como una horda de Geodude, listas para agruparse y reparar cualquier grieta en los vasos sanguíneos (hemostasia).', scanned: false, cellImageUrl: null, pokeImageUrl: null, fixedPokeImageUrl: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/74.png', researchNotes: '', sourceLink: '', captureDate: null }
+            };
+            
+            const locationInfo = {
+                medula: { title: "La Cantera de Huesos", bg: "https://placehold.co/1920x1080/c34a4a/f5c8c8?text=Fondo+Artístico+de+Médula" },
+                timo: { title: "El Dojo del Timo", bg: "https://placehold.co/1920x1080/8e44ad/d5b4e7?text=Fondo+Artístico+del+Timo" },
+                sangre: { title: "Las Autopistas Rojas", bg: "https://placehold.co/1920x1080/e74c3c/f5b7b1?text=Fondo+Artístico+de+Sangre" },
+                tejidos: { title: "Territorios Inexplorados", bg: "https://placehold.co/1920x1080/27ae60/a9dfbf?text=Fondo+Artístico+de+Tejidos" }
+            };
+
+            const studentNameInput = document.getElementById('student-name-input');
+            const fichaCellImgTag = document.getElementById('ficha-cell-img-tag');
+            const fichaCellPlaceholder = document.getElementById('ficha-cell-placeholder');
+            const uploadCellPhotoInput = document.getElementById('upload-cell-photo');
+            const fichaPokeImgTag = document.getElementById('ficha-poke-img-tag');
+            const fichaPokePlaceholder = document.getElementById('ficha-poke-placeholder');
+            const uploadPokePhotoInput = document.getElementById('upload-poke-photo');
+            const downloadPdfBtn = document.getElementById('download-pdf-btn');
+            const researchNotesInput = document.getElementById('ficha-research-notes');
+            const sourceLinkInput = document.getElementById('ficha-source-link');
+            const shutterSound = document.getElementById('shutter-sound');
+
+            const dom = {
+                views: document.querySelectorAll('.view'),
+                navLinks: document.querySelectorAll('.nav-link'),
+                startBtn: document.getElementById('start-expedition-btn'),
+                mapPoints: document.querySelectorAll('.map-point'),
+                recorrido: { container: document.getElementById('recorrido-container'), title: document.getElementById('recorrido-title') },
+                hemodex: { grid: document.getElementById('hemodex-grid'), filters: document.querySelectorAll('.filter-btn') },
+                modal: {
+                    el: document.getElementById('ficha-modal'),
+                    closeBtn: document.getElementById('close-modal-btn'),
+                    cellName: document.getElementById('ficha-cell-name'),
+                    pokeName: document.getElementById('ficha-poke-name'),
+                    text: document.getElementById('ficha-text'),
+                }
+            };
+
+            const showView = (viewId) => {
+                dom.views.forEach(view => view.classList.remove('active'));
+                document.getElementById(viewId)?.classList.add('active');
+                if (viewId === 'hemodex') renderHemodex();
+            };
+
+            const startRecorrido = (locationId) => {
+                const { container, title } = dom.recorrido;
+                container.innerHTML = '';
+                const locationData = locationInfo[locationId];
+                title.textContent = locationData.title;
+                container.style.backgroundImage = `url('${locationData.bg}')`;
+                
+                Object.entries(hemoData).filter(([, v]) => v.location === locationId).forEach(([key, value]) => {
+                    const target = document.createElement('div');
+                    target.className = 'scan-target';
+                    target.dataset.id = key;
+                    target.innerHTML = `<i class="fas ${value.scanned ? 'fa-check' : 'fa-search'} text-white text-3xl"></i>`;
+                    if(value.scanned) target.classList.add('scanned');
+                    target.style.top = `${15 + (Math.random() * 70)}%`;
+                    target.style.left = `${15 + (Math.random() * 70)}%`;
+                    container.appendChild(target);
+                });
+                showView('recorrido');
+            };
+
+            const showFicha = (itemId) => {
+                const data = hemoData[itemId];
+                if (!data) return;
+                
+                const { el, cellName, pokeName, text } = dom.modal;
+                el.dataset.id = itemId;
+                cellName.innerHTML = `<strong>${data.name}</strong>`;
+                pokeName.textContent = data.pokemon;
+                text.textContent = data.text;
+                
+                researchNotesInput.value = data.researchNotes || '';
+                sourceLinkInput.value = data.sourceLink || '';
+
+                if (data.cellImageUrl) {
+                    fichaCellImgTag.src = data.cellImageUrl;
+                    fichaCellImgTag.style.display = 'block';
+                    fichaCellPlaceholder.style.display = 'none';
+                } else {
+                    fichaCellImgTag.style.display = 'none';
+                    fichaCellPlaceholder.style.display = 'block';
+                }
+
+                if (data.pokeImageUrl) {
+                    fichaPokeImgTag.src = data.pokeImageUrl;
+                    fichaPokeImgTag.style.display = 'block';
+                    fichaPokePlaceholder.style.display = 'none';
+                } else if (data.fixedPokeImageUrl) {
+                    fichaPokeImgTag.src = data.fixedPokeImageUrl;
+                    fichaPokeImgTag.style.display = 'block';
+                    fichaPokePlaceholder.style.display = 'none';
+                } else {
+                    fichaPokeImgTag.style.display = 'none';
+                    fichaPokePlaceholder.style.display = 'block';
+                }
+                
+                el.style.display = 'flex';
+            };
+            
+            const renderHemodex = (filter = 'all') => {
+                const { grid } = dom.hemodex;
+                grid.innerHTML = '';
+                Object.entries(hemoData).forEach(([key, value]) => {
+                    if (filter !== 'all' && value.line !== filter) return;
+                    
+                    const card = document.createElement('div');
+                    card.className = 'hemodex-card panel p-4 text-center transition-all transform hover:-translate-y-2';
+                    card.dataset.id = key;
+                    
+                    if (value.scanned) {
+                        card.classList.add('cursor-pointer');
+                        const pokeImg = value.pokeImageUrl || value.fixedPokeImageUrl;
+                        card.innerHTML = `
+                            <div class="w-full h-[88px] bg-gray-200 rounded-lg flex items-center justify-center mb-2 overflow-hidden">
+                                <img src="${pokeImg}" alt="${value.pokemon}" class="max-w-full max-h-full object-contain">
+                            </div>
+                            <h4 class="font-bold text-lg">${value.pokemon}</h4>
+                            <p class="text-xs text-gray-500"><strong>${value.name}</strong></p>
+                        `;
+                    } else {
+                        card.classList.add('locked');
+                        card.innerHTML = `
+                            <div class="w-full h-[88px] bg-gray-200 rounded-lg flex items-center justify-center mb-2"><span class="text-4xl font-bold text-gray-400">?</span></div>
+                            <h4 class="font-bold text-lg text-gray-500">???</h4>
+                            <p class="text-xs text-gray-400">Desconocido</p>
+                        `;
+                    }
+                    grid.appendChild(card);
+                });
+            };
+
+            const handlePhotoUpload = (event, type) => {
+                const file = event.target.files[0];
+                if (!file) return;
+                shutterSound.currentTime = 0;
+                shutterSound.play();
+                const reader = new FileReader();
+                reader.onload = () => {
+                    const dataURL = reader.result;
+                    const itemId = dom.modal.el.dataset.id;
+                    if (itemId && hemoData[itemId]) {
+                        if (type === 'cell') {
+                            hemoData[itemId].cellImageUrl = dataURL;
+                            fichaCellImgTag.src = dataURL;
+                            fichaCellImgTag.style.display = 'block';
+                            fichaCellPlaceholder.style.display = 'none';
+                        } else {
+                            hemoData[itemId].pokeImageUrl = dataURL;
+                            fichaPokeImgTag.src = dataURL;
+                            fichaPokeImgTag.style.display = 'block';
+                            fichaPokePlaceholder.style.display = 'none';
+                        }
+                        renderHemodex();
+                    }
+                };
+                reader.readAsDataURL(file);
+                event.target.value = null;
+            };
+            
+            const loadImage = (url) => {
+                return new Promise((resolve, reject) => {
+                    const img = new Image();
+                    img.crossOrigin = 'Anonymous';
+                    img.onload = () => resolve(img);
+                    img.onerror = (err) => {
+                        console.error(`Failed to load image: ${url}`, err);
+                        const placeholder = new Image();
+                        placeholder.crossOrigin = 'Anonymous';
+                        placeholder.src = `https://placehold.co/400x300/e9ecef/495057?text=Error`;
+                        placeholder.onload = () => resolve(placeholder);
+                        placeholder.onerror = () => reject(err);
+                    };
+                    img.src = url;
+                });
+            };
+
+            async function generatePDF() {
+                const btn = downloadPdfBtn;
+                if (!studentName) {
+                    alert('Por favor, regresa a la sección "Laboratorio" e ingresa tu nombre completo.');
+                    return;
+                }
+                btn.disabled = true;
+                btn.innerHTML = `<i class="fas fa-spinner fa-spin mr-2"></i>Generando...`;
+
+                const doc = new jsPDF('p', 'mm', 'a4');
+                const scannedEntries = Object.values(hemoData).filter(v => v.scanned);
+                if (scannedEntries.length === 0) {
+                    alert('¡No has escaneado ninguna célula! Explora un poco y vuelve a intentarlo.');
+                    btn.disabled = false;
+                    btn.innerHTML = `<i class="fas fa-file-pdf mr-2"></i>Descargar Atlas PDF`;
+                    return;
+                }
+
+                // Title Page
+                doc.setFont('Helvetica', 'bold');
+                doc.setFontSize(28);
+                doc.setTextColor('#3498db');
+                doc.text('Atlas de Pokhematology', 105, 130, null, null, 'center');
+                doc.setFontSize(18);
+                doc.setTextColor('#2c3e50');
+                doc.text(`Investigador: ${studentName}`, 105, 150, null, null, 'center');
+                
+                for (let i = 0; i < scannedEntries.length; i++) {
+                    const entry = scannedEntries[i];
+                    doc.addPage();
+                    
+                    doc.setFont('Helvetica', 'bold');
+                    doc.setFontSize(22);
+                    doc.setTextColor('#3498db');
+                    doc.text(entry.name, 15, 20);
+
+                    doc.setFont('Helvetica', 'normal');
+                    doc.setFontSize(12);
+                    doc.setTextColor('#2c3e50');
+                    doc.text(`Análogo Pokémon: ${entry.pokemon}`, 15, 28);
+                    
+                    const cellImgSrc = entry.cellImageUrl || 'https://placehold.co/400x300/e9ecef/495057?text=Sin+Imagen';
+                    const pokeImgSrc = entry.pokeImageUrl || entry.fixedPokeImageUrl;
+                    
+                    const x = 15, y = 40, w = 85, h = 64;
+                    const padding = 3;
+                    const bottomMargin = 12;
+                    doc.setFillColor(255, 255, 255);
+                    doc.setDrawColor(200, 200, 200);
+                    doc.rect(x - padding, y - padding, w + (padding * 2), h + padding + bottomMargin, 'FD');
+
+                    try {
+                        const cellImg = await loadImage(cellImgSrc);
+                        doc.addImage(cellImg, 'JPEG', x, y, w, h);
+                    } catch (e) { console.error('Error rendering cell image:', e); }
+
+                    doc.setFont('Helvetica', 'normal');
+                    doc.setFontSize(9);
+                    doc.setTextColor('#555555');
+                    const formattedDate = entry.captureDate ? new Date(entry.captureDate).toLocaleDateString('es-ES') : 'Fecha no registrada';
+                    doc.text(formattedDate, x, y + h + 8);
+                    
+                    try {
+                        const pokeImg = await loadImage(pokeImgSrc);
+                        doc.addImage(pokeImg, 'PNG', 110, 40, 85, 64);
+                    } catch (e) { console.error('Error rendering Pokémon image:', e); }
+
+                    let currentY = y + h + bottomMargin + 15;
+                    doc.setFont('Helvetica', 'bold');
+                    doc.setFontSize(11);
+                    doc.setTextColor('#3498db');
+                    doc.text('Descripción Base:', 15, currentY);
+                    currentY += 5;
+
+                    doc.setFont('Helvetica', 'normal');
+                    doc.setFontSize(10);
+                    doc.setTextColor('#2c3e50');
+                    const splitText = doc.splitTextToSize(entry.text, 180);
+                    doc.text(splitText, 15, currentY);
+                    currentY += (splitText.length * 4) + 5;
+                    
+                    if (entry.researchNotes) {
+                        doc.setFont('Helvetica', 'bold');
+                        doc.setFontSize(11);
+                        doc.setTextColor('#3498db');
+                        doc.text('Notas del Investigador:', 15, currentY);
+                        currentY += 5;
+
+                        doc.setFont('Helvetica', 'normal');
+                        doc.setFontSize(10);
+                        doc.setTextColor('#2c3e50');
+                        const notesText = doc.splitTextToSize(entry.researchNotes, 180);
+                        doc.text(notesText, 15, currentY);
+                        currentY += (notesText.length * 4) + 5;
+                    }
+
+                    if (entry.sourceLink) {
+                        doc.setFont('Helvetica', 'bold');
+                        doc.setFontSize(11);
+                        doc.setTextColor('#3498db');
+                        doc.text('Fuente:', 15, currentY);
+                        currentY += 5;
+                        doc.setFont('Helvetica', 'normal');
+                        doc.setFontSize(10);
+                        doc.setTextColor('#0000EE');
+                        doc.textWithLink(entry.sourceLink, 15, currentY, { url: entry.sourceLink });
+                    }
+                }
+                
+                doc.save(`Atlas_Pokhematology_${studentName.replace(/ /g, '_')}.pdf`);
+                btn.disabled = false;
+                btn.innerHTML = `<i class="fas fa-file-pdf mr-2"></i>Descargar Atlas PDF`;
+            }
+
+            // --- EVENT LISTENERS ---
+            dom.navLinks.forEach(link => link.addEventListener('click', (e) => showView(e.target.dataset.view)));
+            dom.startBtn.addEventListener('click', () => {
+                studentName = studentNameInput.value.trim();
+                if (studentName) {
+                    showView('mapa');
+                } else {
+                    alert('Por favor, ingresa tu nombre completo para comenzar la expedición.');
+                }
+            });
+            dom.mapPoints.forEach(point => point.addEventListener('click', (e) => startRecorrido(e.currentTarget.dataset.location)));
+            dom.recorrido.container.addEventListener('click', (e) => {
+                const target = e.target.closest('.scan-target');
+                if (target && !target.classList.contains('scanned')) {
+                    const itemId = target.dataset.id;
+                    hemoData[itemId].scanned = true;
+                    hemoData[itemId].captureDate = new Date();
+                    target.classList.add('scanned');
+                    target.innerHTML = `<i class="fas fa-check text-white text-3xl"></i>`;
+                    showFicha(itemId);
+                }
+            });
+            dom.modal.closeBtn.addEventListener('click', () => dom.modal.el.style.display = 'none');
+            dom.modal.el.addEventListener('click', (e) => { if (e.target === dom.modal.el) dom.modal.el.style.display = 'none'; });
+            dom.hemodex.grid.addEventListener('click', (e) => {
+                const card = e.target.closest('.hemodex-card');
+                if (card && !card.classList.contains('locked')) showFicha(card.dataset.id);
+            });
+            dom.hemodex.filters.forEach(btn => btn.addEventListener('click', (e) => {
+                dom.hemodex.filters.forEach(b => b.classList.remove('bg-accent-primary', 'text-white'));
+                e.currentTarget.classList.add('bg-accent-primary', 'text-white');
+                renderHemodex(e.currentTarget.dataset.filter);
+            }));
+
+            uploadCellPhotoInput.addEventListener('change', (e) => handlePhotoUpload(e, 'cell'));
+            uploadPokePhotoInput.addEventListener('change', (e) => handlePhotoUpload(e, 'poke'));
+            downloadPdfBtn.addEventListener('click', generatePDF);
+
+            researchNotesInput.addEventListener('input', (e) => {
+                const itemId = dom.modal.el.dataset.id;
+                if (itemId && hemoData[itemId]) {
+                    hemoData[itemId].researchNotes = e.target.value;
+                }
+            });
+
+            sourceLinkInput.addEventListener('input', (e) => {
+                const itemId = dom.modal.el.dataset.id;
+                if (itemId && hemoData[itemId]) {
+                    hemoData[itemId].sourceLink = e.target.value;
+                }
+            });
+
+            showView('laboratorio');
+        });
+    </script>
+</body>
+</html>
+
