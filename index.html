@@ -78,6 +78,10 @@
         }
         .narrative-poke-img { display: inline-block; vertical-align: middle; height: 2.5rem; width: 2.5rem; margin: 0 0.5rem; border-radius: 50%; background-color: #f0f8ff; padding: 4px; border: 1px solid #e0e0e0; flex-shrink: 0; }
         .nav-link:disabled { color: #bdc3c7; cursor: not-allowed; background-color: transparent !important; }
+        .nav-link.active-nav {
+            background-color: var(--accent-primary) !important;
+            color: white !important;
+        }
         .action-button { background-color: var(--action-color); }
         .action-button:hover { background-color: #219d52; }
         #screen-flash { transition: opacity 0.3s ease-out; }
@@ -117,6 +121,7 @@
                 <button id="start-expedition-btn" class="action-button text-white font-bold py-3 px-8 md:py-4 md:px-10 rounded-full text-lg md:text-xl hover:bg-green-600 transition-transform hover:scale-105 transform shadow-lg">
                     Iniciar Expedición
                 </button>
+                <button id="reset-progress-btn" class="mt-4 text-xs text-gray-500 hover:text-red-500 transition">Reiniciar Progreso</button>
             </div>
         </section>
 
@@ -205,7 +210,7 @@
                         <p class="font-bold text-gray-700 pt-4">Subfamilia C: Reparadores (Línea Megacariocítica)</p>
                         <div class="flex items-start"><img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/76.png" class="narrative-poke-img" alt="Golem"><p class="text-base leading-relaxed text-gray-600">El <strong>megacariocito</strong> es un gigante <strong>Golem</strong>, tan grande que permanece inmóvil en la médula ósea. Su función es fragmentar su citoplasma para liberar <strong>plaquetas</strong>: las más grandes pueden ser como un <strong>Graveler</strong><img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/75.png" class="narrative-poke-img" alt="Graveler">, mientras que las pequeñas y funcionales son como una horda de <strong>Geodude</strong><img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/74.png" class="narrative-poke-img" alt="Geodude">, listos para agruparse y reparar cualquier grieta en los vasos sanguíneos (hemostasia).</p></div>
                     </div>
-                    <h3 class="text-xl md:text-2xl font-bold mt-8 mb-3 text-gray-700">4. Gimnasios y campos de batalla</h3>
+                     <h3 class="text-xl md:text-2xl font-bold mt-8 mb-3 text-gray-700">4. Gimnasios y campos de batalla</h3>
                     <p class="text-base leading-relaxed text-gray-600">La médula ósea es el Pueblo Paleta donde nacen y entrenan nuestros Pokémon. El timo es un gimnasio de élite exclusivo para los Linfocitos T. Los ganglios linfáticos y el bazo son las Ligas Pokémon, donde las células se reúnen, presentan antígenos y coordinan ataques masivos. Finalmente, los tejidos son el verdadero campo de batalla, donde se enfrentan a virus, bacterias y otros invasores.</p>
                 </div>
                 <!-- QUIZ SECTION -->
@@ -337,6 +342,7 @@
             const quizForm = document.getElementById('quiz-form');
             const screenFlash = document.getElementById('screen-flash');
             const mainMapGrid = document.getElementById('main-map-grid');
+            const resetProgressBtn = document.getElementById('reset-progress-btn');
 
             const dom = {
                 views: document.querySelectorAll('.view'),
@@ -365,7 +371,14 @@
 
             const showView = (viewId) => {
                 dom.views.forEach(view => view.classList.remove('active'));
-                document.getElementById(viewId)?.classList.add('active');
+                dom.navLinks.forEach(link => link.classList.remove('active-nav'));
+                
+                const currentView = document.getElementById(viewId);
+                const currentLink = document.querySelector(`[data-view="${viewId}"]`);
+
+                if(currentView) currentView.classList.add('active');
+                if(currentLink) currentLink.classList.add('active-nav');
+                
                 if (viewId === 'mapa') renderMainMap();
                 if (viewId === 'hemodex') renderHemodex();
             };
@@ -556,18 +569,12 @@
 
                 const doc = new jsPDF('p', 'mm', 'a4');
                 const scannedEntries = Object.values(hemoData).filter(v => v.scanned);
-                if (scannedEntries.length === 0) {
-                    alert('¡No has escaneado ninguna célula! Explora un poco y vuelve a intentarlo.');
-                    btn.disabled = false;
-                    btn.innerHTML = `<i class="fas fa-file-pdf mr-2"></i>Descargar Atlas PDF`;
-                    return;
-                }
                 
                 const addFooter = (docInstance) => {
                     const pageCount = docInstance.internal.getNumberOfPages();
                     for(let i = 1; i <= pageCount; i++) {
                         docInstance.setPage(i);
-                        docInstance.setFontSize(8);
+                        docInstance.setFontSize(10); // Increased font size
                         docInstance.setTextColor(150);
                         docInstance.text('© 2025 | Adriana A. Barrios Rodríguez | Patología Clínica II', docInstance.internal.pageSize.getWidth() / 2, 290, { align: 'center' });
                     }
@@ -585,8 +592,24 @@
                 doc.text(`Fecha de Creación: ${new Date().toLocaleDateString('es-ES')}`, 105, 160, null, null, 'center');
                 doc.setFontSize(10);
                 doc.text('Diseñado por:', 105, 275, null, null, 'center');
+
+                // Watermark Images
+                try {
+                    const dittoImg = await loadImage(hemoData.ditto.fixedPokeImageUrl);
+                    const stemCellImgUrl = hemoData.ditto.cellImageUrl || 'https://placehold.co/512x512/f0f8ff/3498db?text=C%C3%A9lula+Madre';
+                    const stemCellImg = await loadImage(stemCellImgUrl);
+
+                    doc.saveGraphicsState();
+                    doc.setGState(new doc.GState({opacity: 0.1})); // Watermark opacity
+                    doc.addImage(dittoImg, 'PNG', 20, 80, 80, 80);
+                    const imageType = stemCellImgUrl.includes('png') ? 'PNG' : 'JPEG';
+                    doc.addImage(stemCellImg, imageType, 110, 80, 80, 80);
+                    doc.restoreGraphicsState();
+                } catch (e) {
+                    console.error("Error adding watermark images:", e);
+                }
                 
-                // Prologue Page
+                // Prologue Page(s)
                 doc.addPage();
                 doc.setFont('Helvetica', 'bold');
                 doc.setFontSize(22);
@@ -597,13 +620,30 @@
                 doc.setTextColor('#2c3e50');
                 const narrativeText = document.getElementById('narrative-content').innerText.replace('Pokhematology: Clase de Hematopoyesis', '').replace(/Quiz de Comprensión.*/s, '').trim();
                 const splitNarrative = doc.splitTextToSize(narrativeText, 180);
-                doc.text(splitNarrative, 15, 35);
+                let lastY = 35;
                 
-                let lastY = 35 + (splitNarrative.length * 4) + 10;
+                const linesPerPage = 55;
+                let currentPage = 0;
+                while (currentPage * linesPerPage < splitNarrative.length) {
+                    if (currentPage > 0) {
+                        doc.addPage();
+                        lastY = 20;
+                    }
+                    const start = currentPage * linesPerPage;
+                    const end = start + linesPerPage;
+                    doc.text(splitNarrative.slice(start, end), 15, lastY);
+                    lastY = 20 + (splitNarrative.slice(start, end).length * 4);
+                    currentPage++;
+                }
+
+                if (lastY > 270) { 
+                    doc.addPage();
+                    lastY = 20;
+                }
                 doc.setFont('Helvetica', 'bolditalic');
                 doc.setTextColor('#e74c3c');
                 const noteText = doc.splitTextToSize('NOTA: Esta es una versión simplificada de la hematopoyesis. Se deberán consultar libros especializados para profundizar en el proceso.', 180);
-                doc.text(noteText, 15, lastY);
+                doc.text(noteText, 15, lastY + 10);
 
 
                 for (let i = 0; i < scannedEntries.length; i++) {
@@ -730,8 +770,17 @@
                     studentName = progress.studentName || '';
                     narrativeQuizPassed = progress.narrativeQuizPassed || false;
                     studentNameEntered = progress.studentNameEntered || false;
+                    if(studentNameEntered) studentNameInput.disabled = true;
                     Object.assign(hemoData, progress.hemoData);
                     studentNameInput.value = studentName;
+                }
+            };
+
+            const resetProgress = () => {
+                const isConfirmed = confirm('¿Estás seguro de que quieres reiniciar todo tu progreso? Esta acción no se puede deshacer.');
+                if (isConfirmed) {
+                    localStorage.removeItem('pokhematologyProgress');
+                    window.location.reload();
                 }
             };
 
@@ -748,6 +797,7 @@
             dom.startBtn.addEventListener('click', () => {
                 studentName = studentNameInput.value.trim();
                 if (studentName) {
+                    studentNameInput.disabled = true;
                     studentNameEntered = true;
                     updateNavStatus();
                     showView('mapa');
@@ -839,6 +889,8 @@
                     renderSourceLinks(itemId);
                 }
             });
+
+            resetProgressBtn.addEventListener('click', resetProgress);
 
             // Initial Setup
             loadProgress();
